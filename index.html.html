@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar & Comms Link Budget Calculator</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen p-4 md:p-8">
+
+    <header class="max-w-7xl mx-auto mb-8 border-b border-slate-700 pb-4">
+        <h1 class="text-3xl font-bold text-sky-400">RADAR & COMMS LINK BUDGET CALCULATOR</h1>
+        <p class="text-sm text-slate-400 mt-1">Interactive RF Link Budget, Line of Sight, Radar Range & Data Rate Analysis</p>
+    </header>
+
+    <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <!-- 1. LINE OF SIGHT & KINEMATICS -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+            <h2 class="text-lg font-bold text-sky-300 border-b border-slate-700 pb-2 mb-4">1. Line of Sight & Target Kinematics</h2>
+            <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Radar Height (m)</label>
+                    <input id="los_h1" type="number" value="120" oninput="calcLOS()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Target Height (m)</label>
+                    <input id="los_h2" type="number" value="1000" oninput="calcLOS()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Target Speed (Mach)</label>
+                    <input id="los_mach" type="number" step="0.1" value="3.0" oninput="calcLOS()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Intercept Distance (km)</label>
+                    <input id="los_dist" type="number" value="4.0" oninput="calcLOS()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+            </div>
+            <div class="bg-slate-900/80 rounded-lg p-3 grid grid-cols-2 gap-2 text-xs border border-slate-700">
+                <div>d1 (Radar Horizon): <span id="res_d1" class="font-bold text-sky-400">0</span> km</div>
+                <div>d2 (Target Horizon): <span id="res_d2" class="font-bold text-sky-400">0</span> km</div>
+                <div class="col-span-2 pt-1 border-t border-slate-800 mt-1">
+                    LOS Distance: <span id="res_los_km" class="font-bold text-emerald-400 text-sm">0</span> km 
+                    (<span id="res_los_nm" class="font-bold text-emerald-400 text-sm">0</span> NMi)
+                </div>
+                <div class="col-span-2">Time to Target: <span id="res_time_target" class="font-bold text-amber-400">0</span> sec</div>
+            </div>
+        </div>
+
+        <!-- 2. RECEIVER SENSITIVITY -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+            <h2 class="text-lg font-bold text-sky-300 border-b border-slate-700 pb-2 mb-4">2. Receiver Sensitivity</h2>
+            <div class="grid grid-cols-2 gap-4 text-sm mb-4">
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Bandwidth (kHz)</label>
+                    <input id="sens_bw" type="number" value="20" oninput="calcSens()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Noise Figure (dB)</label>
+                    <input id="sens_nf" type="number" value="5" oninput="calcSens()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-slate-400 text-xs mb-1">Pulse Width (μsec)</label>
+                    <input id="sens_pw" type="number" value="50" oninput="calcSens()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+            </div>
+            <div class="bg-slate-900/80 rounded-lg p-3 grid grid-cols-2 gap-2 text-xs border border-slate-700">
+                <div>Thermal Noise Floor: <span id="res_noise_floor" class="font-bold text-sky-400">0</span> dBm</div>
+                <div>Rx Sensitivity: <span id="res_sensitivity" class="font-bold text-emerald-400">0</span> dBm</div>
+                <div class="col-span-2 pt-1 border-t border-slate-800 mt-1">Detection Bandwidth: <span id="res_det_bw" class="font-bold text-amber-400">0</span> Hz</div>
+            </div>
+        </div>
+
+        <!-- 3. FREE SPACE LOSS (COMMS LINK BUDGET) -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+            <h2 class="text-lg font-bold text-sky-300 border-b border-slate-700 pb-2 mb-4">3. Free Space Comms Link Budget</h2>
+            <div class="grid grid-cols-3 gap-3 text-sm mb-4">
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Pt (Watts)</label>
+                    <input id="fs_pt" type="number" value="250" oninput="calcFS()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Gt (dBi)</label>
+                    <input id="fs_gt" type="number" value="3" oninput="calcFS()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Gr (dBi)</label>
+                    <input id="fs_gr" type="number" value="12" oninput="calcFS()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Freq (MHz)</label>
+                    <input id="fs_freq" type="number" value="1090" oninput="calcFS()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Dist (km)</label>
+                    <input id="fs_dist" type="number" value="200" oninput="calcFS()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Loss (dB)</label>
+                    <input id="fs_loss" type="number" value="3" oninput="calcFS()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+            </div>
+            <div class="bg-slate-900/80 rounded-lg p-3 grid grid-cols-2 gap-2 text-xs border border-slate-700">
+                <div>Pt (Power Output): <span id="res_fs_pt_dbm" class="font-bold text-sky-400">0</span> dBm</div>
+                <div>Prx (Received Power): <span id="res_fs_prx" class="font-bold text-emerald-400">0</span> dBm</div>
+                <div class="col-span-2 pt-1 border-t border-slate-800 mt-1">Link SNR (vs -105 dBm Sens): <span id="res_fs_snr" class="font-bold text-amber-400">0</span> dB</div>
+            </div>
+        </div>
+
+        <!-- 4. PLANE EARTH MODEL -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+            <h2 class="text-lg font-bold text-sky-300 border-b border-slate-700 pb-2 mb-4">4. Plane Earth Model (2-Ray Ground Reflection)</h2>
+            <div class="grid grid-cols-3 gap-3 text-sm mb-4">
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Pt (Watts)</label>
+                    <input id="pe_pt" type="number" value="2000" oninput="calcPE()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Gt (dBi)</label>
+                    <input id="pe_gt" type="number" value="30" oninput="calcPE()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Gr (dBi)</label>
+                    <input id="pe_gr" type="number" value="12" oninput="calcPE()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Tx Height ht (m)</label>
+                    <input id="pe_ht" type="number" value="5" oninput="calcPE()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Rx Height hr (m)</label>
+                    <input id="pe_hr" type="number" value="2" oninput="calcPE()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Dist (km)</label>
+                    <input id="pe_dist" type="number" value="3" oninput="calcPE()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+            </div>
+            <div class="bg-slate-900/80 rounded-lg p-3 grid grid-cols-2 gap-2 text-xs border border-slate-700">
+                <div>Pt (Power Output): <span id="res_pe_pt_dbm" class="font-bold text-sky-400">0</span> dBm</div>
+                <div>Prx (Received Power): <span id="res_pe_prx" class="font-bold text-emerald-400">0</span> dBm</div>
+            </div>
+        </div>
+
+        <!-- 5. RADAR MAXIMUM DETECTION RANGE -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg lg:col-span-2">
+            <h2 class="text-lg font-bold text-sky-300 border-b border-slate-700 pb-2 mb-4">5. Radar Maximum Detection Range</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Pt (kW)</label>
+                    <input id="radar_pt" type="number" value="160" oninput="calcRadar()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Gt (dBi)</label>
+                    <input id="radar_gt" type="number" value="38" oninput="calcRadar()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Gr (dBi)</label>
+                    <input id="radar_gr" type="number" value="38" oninput="calcRadar()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">RCS (dBsm)</label>
+                    <input id="radar_rcs" type="number" value="0" oninput="calcRadar()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Pulses Integration (N)</label>
+                    <input id="radar_pulses" type="number" value="4" oninput="calcRadar()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Freq (GHz)</label>
+                    <input id="radar_freq" type="number" step="0.1" value="3.1" oninput="calcRadar()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">MDS Prx (dBm)</label>
+                    <input id="radar_mds" type="number" value="-123" oninput="calcRadar()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Loss (dB)</label>
+                    <input id="radar_loss" type="number" value="13" oninput="calcRadar()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+            </div>
+            <div class="bg-slate-900/80 rounded-lg p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs border border-slate-700 text-center">
+                <div><p class="text-slate-400">Pt (dBm)</p><p id="res_radar_pt_dbm" class="text-base font-bold text-sky-400">0</p></div>
+                <div><p class="text-slate-400">40 log R</p><p id="res_radar_40logr" class="text-base font-bold text-sky-400">0</p></div>
+                <div><p class="text-slate-400">Max Range (km)</p><p id="res_radar_r_km" class="text-lg font-bold text-emerald-400">0</p></div>
+                <div><p class="text-slate-400">Max Range (NMi)</p><p id="res_radar_r_nm" class="text-lg font-bold text-emerald-400">0</p></div>
+            </div>
+        </div>
+
+        <!-- 6. OFDM THROUGHPUT -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg lg:col-span-2">
+            <h2 class="text-lg font-bold text-sky-300 border-b border-slate-700 pb-2 mb-4">6. OFDM Communications Data Throughput</h2>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm mb-4">
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Symbol Rate (ksps)</label>
+                    <input id="ofdm_sr" type="number" value="250" oninput="calcOFDM()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Subcarriers</label>
+                    <input id="ofdm_sub" type="number" value="48" oninput="calcOFDM()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Code Rate</label>
+                    <input id="ofdm_code" type="number" step="0.1" value="0.5" oninput="calcOFDM()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">Overhead (0.2 = 20%)</label>
+                    <input id="ofdm_oh" type="number" step="0.05" value="0.2" oninput="calcOFDM()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+                <div>
+                    <label class="block text-slate-400 text-xs mb-1">MIMO Factor</label>
+                    <input id="ofdm_mimo" type="number" value="2" oninput="calcOFDM()" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sky-200 focus:outline-none focus:border-sky-500">
+                </div>
+            </div>
+            <div class="bg-slate-900/80 rounded-lg p-4 text-center border border-slate-700">
+                <p class="text-slate-400 text-xs uppercase">Calculated Throughput</p>
+                <p id="res_ofdm_tp" class="text-2xl font-black text-amber-300">0 Mbps</p>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        function calcLOS() {
+            const h1 = parseFloat(document.getElementById('los_h1').value) || 0;
+            const h2 = parseFloat(document.getElementById('los_h2').value) || 0;
+            const mach = parseFloat(document.getElementById('los_mach').value) || 0;
+            const dist = parseFloat(document.getElementById('los_dist').value) || 0;
+
+            // Excel formula: d1 = 4.12 * sqrt(h1), d2 = 4.12 * sqrt(h2)
+            const d1 = 4.12 * Math.sqrt(h1);
+            const d2 = 4.12 * Math.sqrt(h2);
+            const losKm = d1 + d2;
+            const losNm = losKm / 1.85;
+
+            const speedKph = 1234.8 * mach;
+            const timeSec = speedKph > 0 ? (dist / speedKph) * 3600 : 0;
+
+            document.getElementById('res_d1').innerText = d1.toFixed(2);
+            document.getElementById('res_d2').innerText = d2.toFixed(2);
+            document.getElementById('res_los_km').innerText = losKm.toFixed(2);
+            document.getElementById('res_los_nm').innerText = losNm.toFixed(2);
+            document.getElementById('res_time_target').innerText = timeSec.toFixed(2);
+        }
+
+        function calcSens() {
+            const bw = parseFloat(document.getElementById('sens_bw').value) || 0;
+            const nf = parseFloat(document.getElementById('sens_nf').value) || 0;
+            const pw = parseFloat(document.getElementById('sens_pw').value) || 0;
+
+            // Excel formula: -174 + 10 * log10(bw * 1000)
+            const noiseFloor = -174 + 10 * Math.log10(bw * 1000);
+            const sens = noiseFloor + nf;
+            const detBw = pw > 0 ? (1000000 / pw) : 0;
+
+            document.getElementById('res_noise_floor').innerText = noiseFloor.toFixed(2);
+            document.getElementById('res_sensitivity').innerText = sens.toFixed(2);
+            document.getElementById('res_det_bw').innerText = detBw.toFixed(0);
+        }
+
+        function calcFS() {
+            const pt = parseFloat(document.getElementById('fs_pt').value) || 0;
+            const gt = parseFloat(document.getElementById('fs_gt').value) || 0;
+            const gr = parseFloat(document.getElementById('fs_gr').value) || 0;
+            const freq = parseFloat(document.getElementById('fs_freq').value) || 0;
+            const dist = parseFloat(document.getElementById('fs_dist').value) || 0;
+            const loss = parseFloat(document.getElementById('fs_loss').value) || 0;
+
+            const ptDbm = 10 * Math.log10(pt / 0.001);
+            // Excel formula: Pt_dBm + Gt + Gr - 32 - 20*log10(f_MHz) - 20*log10(d_km) - Loss
+            const prx = ptDbm + gt + gr - 32 - 20 * Math.log10(freq) - 20 * Math.log10(dist) - loss;
+            const snr = prx - (-105);
+
+            document.getElementById('res_fs_pt_dbm').innerText = ptDbm.toFixed(2);
+            document.getElementById('res_fs_prx').innerText = prx.toFixed(2);
+            document.getElementById('res_fs_snr').innerText = snr.toFixed(2);
+        }
+
+        function calcPE() {
+            const pt = parseFloat(document.getElementById('pe_pt').value) || 0;
+            const gt = parseFloat(document.getElementById('pe_gt').value) || 0;
+            const gr = parseFloat(document.getElementById('pe_gr').value) || 0;
+            const ht = parseFloat(document.getElementById('pe_ht').value) || 0;
+            const hr = parseFloat(document.getElementById('pe_hr').value) || 0;
+            const dist = parseFloat(document.getElementById('pe_dist').value) || 0;
+
+            const ptDbm = 10 * Math.log10(pt / 0.001);
+            // Excel formula: Pt_dBm + Gt + Gr + 10*log10(ht) + 10*log10(hr) - 120 - 40*log10(dist) - 3
+            const prx = ptDbm + gt + gr + 10 * Math.log10(ht) + 10 * Math.log10(hr) - 120 - 40 * Math.log10(dist) - 3;
+
+            document.getElementById('res_pe_pt_dbm').innerText = ptDbm.toFixed(2);
+            document.getElementById('res_pe_prx').innerText = prx.toFixed(2);
+        }
+
+        function calcRadar() {
+            const ptKw = parseFloat(document.getElementById('radar_pt').value) || 0;
+            const gt = parseFloat(document.getElementById('radar_gt').value) || 0;
+            const gr = parseFloat(document.getElementById('radar_gr').value) || 0;
+            const rcs = parseFloat(document.getElementById('radar_rcs').value) || 0;
+            const pulses = parseFloat(document.getElementById('radar_pulses').value) || 1;
+            const freq = parseFloat(document.getElementById('radar_freq').value) || 1;
+            const mds = parseFloat(document.getElementById('radar_mds').value) || 0;
+            const loss = parseFloat(document.getElementById('radar_loss').value) || 0;
+
+            const ptDbm = 10 * Math.log10((ptKw * 1000) / 0.001);
+            // Excel formula: 40logR = Pt_dBm + Gt + Gr + RCS + 10*log10(N) - 164 - 20*log10(f_GHz) - MDS - Loss
+            const log40r = ptDbm + gt + gr + rcs + 10 * Math.log10(pulses) - 164 - 20 * Math.log10(freq) - mds - loss;
+            const rKm = Math.pow(10, log40r / 40);
+            const rNm = rKm / 1.85;
+
+            document.getElementById('res_radar_pt_dbm').innerText = ptDbm.toFixed(2);
+            document.getElementById('res_radar_40logr').innerText = log40r.toFixed(2);
+            document.getElementById('res_radar_r_km').innerText = rKm.toFixed(2);
+            document.getElementById('res_radar_r_nm').innerText = rNm.toFixed(2);
+        }
+
+        function calcOFDM() {
+            const sr = parseFloat(document.getElementById('ofdm_sr').value) || 0;
+            const sub = parseFloat(document.getElementById('ofdm_sub').value) || 0;
+            const code = parseFloat(document.getElementById('ofdm_code').value) || 0;
+            const oh = parseFloat(document.getElementById('ofdm_oh').value) || 0;
+            const mimo = parseFloat(document.getElementById('ofdm_mimo').value) || 1;
+
+            // Excel formula: sr * sub * code * (1 - oh) * mimo / 1000
+            const tp = (sr * sub * code * (1 - oh) * mimo) / 1000;
+            document.getElementById('res_ofdm_tp').innerText = tp.toFixed(2) + " Mbps";
+        }
+
+        // Initialize all calculations on load
+        calcLOS();
+        calcSens();
+        calcFS();
+        calcPE();
+        calcRadar();
+        calcOFDM();
+    </script>
+</body>
+</html>
